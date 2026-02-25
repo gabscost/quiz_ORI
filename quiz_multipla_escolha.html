@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz – PageRank / HITS / TrustRank</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f0f1a;
+    color: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header h1 { font-size: 1.4rem; color: #a78bfa; letter-spacing: 1px; }
+  header p { font-size: 0.82rem; color: #666; margin-top: 4px; }
+
+  .progress-wrap {
+    width: 100%; max-width: 560px;
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .progress-label { font-size: 0.78rem; color: #666; }
+  .progress-bar {
+    width: 100%; max-width: 560px;
+    height: 6px; background: #2a2a3a;
+    border-radius: 99px; margin-bottom: 22px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .category-badge {
+    display: inline-block;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 3px 12px; border-radius: 99px;
+    margin-bottom: 14px;
+  }
+  .cat-conceito   { background: #1e1b4b; color: #a5b4fc; }
+  .cat-formula    { background: #1c1917; color: #fcd34d; }
+  .cat-algoritmo  { background: #0c1a2e; color: #7dd3fc; }
+  .cat-limitacao  { background: #1f1515; color: #fca5a5; }
+
+  .card {
+    width: 100%; max-width: 560px;
+    background: #1a1a2e;
+    border: 1px solid #2e2e4e;
+    border-radius: 18px;
+    padding: 28px 26px 24px;
+    margin-bottom: 16px;
+  }
+
+  .question { font-size: 1.05rem; line-height: 1.6; font-weight: 500; margin-bottom: 22px; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+
+  .option {
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1.5px solid #2e2e4e;
+    background: #12121f;
+    cursor: pointer;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .option:hover:not(.disabled) { border-color: #7c3aed; background: #1e1830; }
+  .option .letter {
+    font-weight: 700; font-size: 0.82rem;
+    min-width: 22px; color: #666;
+    padding-top: 1px;
+  }
+  .option.correct { border-color: #22c55e; background: #0f2d1a; }
+  .option.correct .letter { color: #22c55e; }
+  .option.wrong   { border-color: #ef4444; background: #2d0f0f; }
+  .option.wrong .letter   { color: #ef4444; }
+  .option.disabled { cursor: default; }
+
+  .feedback {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    display: none;
+  }
+  .feedback.show { display: block; }
+  .feedback.ok  { background: #0f2d1a; border: 1px solid #22c55e; color: #86efac; }
+  .feedback.err { background: #2d0f0f; border: 1px solid #ef4444; color: #fca5a5; }
+  .feedback strong { color: inherit; }
+
+  .nav {
+    width: 100%; max-width: 560px;
+    display: flex; gap: 12px;
+  }
+  .btn {
+    flex: 1; padding: 13px;
+    border: none; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-next  { background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #fff; }
+  .btn-prev  { background: #2a2a3a; color: #aaa; flex: 0.45; }
+
+  /* Resultado final */
+  .result-screen {
+    display: none;
+    text-align: center;
+    width: 100%; max-width: 560px;
+  }
+  .result-screen.show { display: block; }
+  .score-circle {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    border: 4px solid #7c3aed;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .score-num { font-size: 2rem; font-weight: 700; color: #a78bfa; }
+  .score-total { font-size: 0.8rem; color: #666; }
+  .result-msg { font-size: 1.1rem; margin-bottom: 8px; }
+  .result-sub { font-size: 0.85rem; color: #888; margin-bottom: 28px; }
+  .btn-restart {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+  }
+  .review-list { margin-top: 28px; text-align: left; }
+  .review-item {
+    background: #1a1a2e; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px;
+    border-left: 4px solid;
+    font-size: 0.85rem; line-height: 1.5;
+  }
+  .review-item.ok  { border-color: #22c55e; }
+  .review-item.err { border-color: #ef4444; }
+  .review-item .ri-q { color: #ccc; margin-bottom: 6px; }
+  .review-item .ri-a { color: #86efac; }
+  .review-item .ri-w { color: #fca5a5; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Quiz de Estudo</h1>
+  <p>PageRank · HITS · TrustRank</p>
+</header>
+
+<div class="progress-wrap">
+  <span class="progress-label" id="prog-label">Questão 1 de 16</span>
+  <span class="progress-label" id="score-label">✅ 0 acertos</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+<div id="quiz-area">
+  <div class="card" id="main-card">
+    <span class="category-badge" id="cat-badge"></span>
+    <p class="question" id="q-text"></p>
+    <div class="options" id="options-wrap"></div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+  <div class="nav">
+    <button class="btn btn-prev" onclick="prevQ()">← Voltar</button>
+    <button class="btn btn-next" id="btn-next" onclick="nextQ()">Próxima →</button>
+  </div>
+</div>
+
+<div class="result-screen" id="result-screen">
+  <div class="score-circle">
+    <span class="score-num" id="res-num"></span>
+    <span class="score-total" id="res-total"></span>
+  </div>
+  <p class="result-msg" id="res-msg"></p>
+  <p class="result-sub" id="res-sub"></p>
+  <button class="btn-restart" onclick="restart()">🔁 Refazer Quiz</button>
+  <div class="review-list" id="review-list"></div>
+</div>
+
+<script>
+const questions = [
+  // CONCEITO → DEFINIÇÃO
+  {
+    cat: "conceito",
+    catLabel: "Conceito → Definição",
+    q: "O que é o PageRank, em sua essência?",
+    options: [
+      "Um algoritmo que lê o conteúdo das páginas e avalia a qualidade textual",
+      "Um sistema de votação onde links funcionam como votos de popularidade entre páginas",
+      "Um modelo que classifica páginas pela data de criação e frequência de atualização",
+      "Um mecanismo que filtra páginas com base em palavras-chave proibidas"
+    ],
+    correct: 1,
+    explanation: "PageRank trata links como votos — quanto mais páginas importantes te linkam, maior seu score. Ele não lê conteúdo, só analisa estrutura de links."
+  },
+  {
+    cat: "conceito",
+    catLabel: "Conceito → Definição",
+    q: "O que diferencia uma página 'Authority' de uma página 'Hub' no algoritmo HITS?",
+    options: [
+      "Authority tem mais links de entrada; Hub tem mais links de saída",
+      "Authority é uma página governamental; Hub é uma página comercial",
+      "Authority é referência no conteúdo do assunto; Hub aponta para várias boas autoridades",
+      "Não há diferença prática, são sinônimos no contexto do HITS"
+    ],
+    correct: 2,
+    explanation: "Authority = destino de qualidade (ex: artigo da Wikipedia). Hub = agregador/curador que linka boas fontes (ex: blog acadêmico). Um site pode ser os dois ao mesmo tempo."
+  },
+  {
+    cat: "conceito",
+    catLabel: "Conceito → Definição",
+    q: "O que são as 'sementes' (seeds) no TrustRank?",
+    options: [
+      "Palavras-chave usadas para iniciar uma busca no índice",
+      "Domínios altamente confiáveis selecionados manualmente para propagar confiança",
+      "Algoritmos auxiliares que alimentam o cálculo principal do PageRank",
+      "Links pagos por anunciantes verificados pelo Google"
+    ],
+    correct: 1,
+    explanation: "Seeds são domínios verificados manualmente (gov.br, universidades, IFCN). A confiança parte deles e se propaga pela rede. Típico: 50–200 domínios."
+  },
+  {
+    cat: "conceito",
+    catLabel: "Conceito → Definição",
+    q: "O que é 'Isolamento Topológico' no contexto de fake news?",
+    options: [
+      "Técnica de criptografia que isola domínios suspeitos da rede",
+      "Sites de desinformação raramente recebem links de autoridades legítimas, ficando isolados no grafo",
+      "Processo de remover páginas falsas do índice de busca manualmente",
+      "Método de separar conteúdo nacional de conteúdo internacional"
+    ],
+    correct: 1,
+    explanation: "Sites de fake news se interligam muito entre si, mas dificilmente recebem links de universidades ou governos. Esse isolamento é um sinal estrutural detectável antes mesmo de ler o conteúdo."
+  },
+
+  // FÓRMULA → EXPLICAÇÃO
+  {
+    cat: "formula",
+    catLabel: "Fórmula → Explicação",
+    q: "Na fórmula do PageRank PR(B) = Σ [ PR(A) / L(A) ], o que representa L(A)?",
+    options: [
+      "O número de links que a página B recebe no total",
+      "O nível de autoridade da página A no ranking geral",
+      "O número de links de saída da página A",
+      "A distância entre as páginas A e B no grafo"
+    ],
+    correct: 2,
+    explanation: "L(A) é o número de links que A possui saindo dela. Divide-se o PR(A) por L(A) pois a autoridade é distribuída igualmente entre todos os links de saída — quanto mais links A tem, menos passa para cada um."
+  },
+  {
+    cat: "formula",
+    catLabel: "Fórmula → Explicação",
+    q: "Na fórmula completa PR(B) = (1-d) + d × Σ [ PR(A) / L(A) ], o que acontece se d = 1?",
+    options: [
+      "Toda a confiança vem das sementes, sem propagação pela rede",
+      "O algoritmo para de funcionar e retorna zero para todas as páginas",
+      "Toda a autoridade vem apenas da estrutura de links, sem fator de aleatoriedade — fácil de manipular",
+      "O PageRank se torna idêntico ao TrustRank"
+    ],
+    correct: 2,
+    explanation: "Com d=1, o termo (1-d)=0 some e tudo depende dos links. Um grupo de sites que se linkam mutuamente inflaria artificialmente o score — é a vulnerabilidade das link farms."
+  },
+  {
+    cat: "formula",
+    catLabel: "Fórmula → Explicação",
+    q: "Na fórmula do TrustRank T(p) = (1-α)·Seed(p) + α·Σ[T(q)/|Out(q)|], o que representa Seed(p)?",
+    options: [
+      "A quantidade de links que p recebe de outras páginas",
+      "Um valor binário ou ponderado que indica se p é uma semente confiável",
+      "O score de popularidade acumulado da página p",
+      "O número de iterações já realizadas para calcular o trust de p"
+    ],
+    correct: 1,
+    explanation: "Seed(p) é 1 (ou um valor positivo) se p é uma semente confiável selecionada, e 0 caso contrário. É o 'ponto de partida' da confiança — sem isso, o trust não entra na rede."
+  },
+  {
+    cat: "formula",
+    catLabel: "Fórmula → Explicação",
+    q: "Por que o TrustRank divide T(q) por |Out(q)| na sua fórmula?",
+    options: [
+      "Para penalizar páginas que têm muitos links de saída suspeitos",
+      "Porque a confiança é distribuída igualmente entre todos os links de saída — diluindo ao linkar muitos sites",
+      "Para normalizar o score entre 0 e 1 independente do tamanho da rede",
+      "Para garantir que sementes recebam mais trust do que páginas comuns"
+    ],
+    correct: 1,
+    explanation: "Mesma lógica do PageRank: se uma fonte confiável linka 1000 sites, passa menos confiança a cada um do que se linkasse apenas 5. Isso impede que sites ruins ganhem muito trust só por serem linkados por uma semente."
+  },
+
+  // ALGORITMO → COMO FUNCIONA
+  {
+    cat: "algoritmo",
+    catLabel: "Algoritmo → Como funciona",
+    q: "Qual é a ordem correta do funcionamento do TrustRank?",
+    options: [
+      "Selecionar sementes → Propagar trust iterativamente → Aplicar limiar → Filtrar resultados",
+      "Rastrear toda a web → Calcular PageRank → Subtrair sites ruins → Rankear",
+      "Analisar conteúdo → Identificar fake news → Remover do índice → Propagar confiança",
+      "Inicializar todos com trust=1 → Penalizar suspeitos → Convergir → Publicar ranking"
+    ],
+    correct: 0,
+    explanation: "1) Seeds selecionadas manualmente recebem TrustScore=1/N. 2) A cada iteração, trust se propaga pelos links de saída. 3) Converge em ~50 iterações. 4) Páginas abaixo do limiar τ são sinalizadas ou excluídas."
+  },
+  {
+    cat: "algoritmo",
+    catLabel: "Algoritmo → Como funciona",
+    q: "Como o algoritmo HITS decide quais páginas analisar? Ele analisa toda a web?",
+    options: [
+      "Sim, analisa toda a web a cada consulta em tempo real",
+      "Não — ele parte de uma consulta e expande para uma vizinhança de páginas relevantes (grafo local)",
+      "Analisa apenas páginas governamentais e educacionais pré-selecionadas",
+      "Usa apenas o histórico de cliques dos usuários para selecionar candidatos"
+    ],
+    correct: 1,
+    explanation: "HITS é query-dependent: começa com uma busca, pega os resultados e expande para os vizinhos (quem linka e quem é linkado). Forma um grafo local onde calcula Hub e Authority iterativamente."
+  },
+  {
+    cat: "algoritmo",
+    catLabel: "Algoritmo → Como funciona",
+    q: "Por que o PageRank 'reinicia' a cada iteração sem memória das fontes?",
+    options: [
+      "Para economizar memória computacional e acelerar o cálculo",
+      "Porque a web muda constantemente e manter memória tornaria o cálculo instável",
+      "Por design — ele não propaga credibilidade de fonte, apenas popularidade estrutural de links",
+      "Para evitar que sites pagos acumulem vantagem ao longo do tempo"
+    ],
+    correct: 2,
+    explanation: "Essa é uma limitação central do PR: ele não tem memória de quem é confiável. A cada iteração recalcula do zero. Por isso não há 'propagação de credibilidade' — o TrustRank foi criado exatamente para suprir essa lacuna."
+  },
+  {
+    cat: "algoritmo",
+    catLabel: "Algoritmo → Como funciona",
+    q: "O TrustRank substitui o PageRank em motores de busca modernos?",
+    options: [
+      "Sim, o TrustRank é mais preciso e tornou o PageRank obsoleto",
+      "Não — eles se complementam. PR ranqueia por popularidade; TR filtra por confiabilidade antes ou depois",
+      "Depende: o Google usa TrustRank, o Bing ainda usa PageRank clássico",
+      "Sim, mas apenas para domínios .gov e .edu"
+    ],
+    correct: 1,
+    explanation: "TR não substitui PR — ele o complementa. Um motor de busca pode usar TR para filtrar candidatos suspeitos e PR para rankear os restantes. Os dois juntos são mais robustos do que cada um separado."
+  },
+
+  // LIMITAÇÃO → SOLUÇÃO
+  {
+    cat: "limitacao",
+    catLabel: "Limitação → Solução",
+    q: "Um site bem linkado publica notícias falsas. Qual é a limitação do TrustRank aqui e qual é a solução moderna?",
+    options: [
+      "Limitação: seeds insuficientes. Solução: aumentar para 10.000 seeds",
+      "Limitação: o TR analisa só estrutura de links, não conteúdo. Solução: integrar BERT/GPT para análise semântica do texto",
+      "Limitação: o fator α está mal calibrado. Solução: ajustar α para 0.5",
+      "Limitação: o site usa HTTPS. Solução: penalizar domínios com certificado inválido"
+    ],
+    correct: 1,
+    explanation: "TrustRank não lê o que está escrito — só segue links. A evolução com LLMs (BERT, GPT) permite avaliar a credibilidade semântica do conteúdo, complementando a análise estrutural."
+  },
+  {
+    cat: "limitacao",
+    catLabel: "Limitação → Solução",
+    q: "Um domínio novo e legítimo surge na web. Qual problema isso causa no TrustRank e como as GNNs resolvem?",
+    options: [
+      "Causa loop infinito no cálculo iterativo. GNNs reinicializam o grafo periodicamente",
+      "Causa cold start — sem histórico de links, fica sem score. GNNs aprendem representações de novos nós a partir dos vizinhos",
+      "O domínio recebe trust máximo por padrão. GNNs normalizam isso para evitar abuso",
+      "O algoritmo ignora domínios novos até completar 6 meses. GNNs reduzem esse prazo para 1 mês"
+    ],
+    correct: 1,
+    explanation: "Cold start: novo domínio = sem links = sem trust. GNNs (Graph Neural Networks) aprendem a representar nós novos baseado nos vizinhos já conhecidos, atribuindo scores confiáveis mesmo para domínios recém-criados."
+  },
+  {
+    cat: "limitacao",
+    catLabel: "Limitação → Solução",
+    q: "O processo de seleção manual de sementes é caro e sujeito a viés. Qual solução o trabalho apresenta?",
+    options: [
+      "Substituir curadoria humana por IA completamente, sem supervisão",
+      "Usar apenas domínios .gov como sementes, eliminando a subjetividade",
+      "Múltiplos curadores independentes com critérios padronizados + modelos de ML para triagem auxiliar",
+      "Aumentar o número de sementes para milhares, diluindo o impacto de erros individuais"
+    ],
+    correct: 2,
+    explanation: "A solução combina: diversificar curadores (reduz viés individual), usar critérios padronizados como o IFCN (reduz subjetividade) e usar ML para triagem (reduz carga humana). Nenhuma solução única resolve tudo."
+  },
+  {
+    cat: "limitacao",
+    catLabel: "Limitação → Solução",
+    q: "Link farms inflam o PageRank de sites ruins. Por que o TrustRank é mais resistente a isso?",
+    options: [
+      "Porque o TR ignora completamente links de saída no seu cálculo",
+      "Porque o TR começa a propagação em sementes verificadas — links de sites sem trust não geram trust",
+      "Porque o TR usa um fator α menor que o PR, reduzindo o impacto de links artificiais",
+      "Porque o TR penaliza automaticamente sites com mais de 100 links de saída"
+    ],
+    correct: 1,
+    explanation: "No PR, qualquer site linkando outro passa autoridade. No TR, a confiança só flui de sementes verificadas. Uma link farm que nunca recebeu trust de uma semente não consegue 'fabricar' trust — ele simplesmente não existe no fluxo."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = new Array(questions.length).fill(null); // null | 'correct' | 'wrong'
+let selectedOption = new Array(questions.length).fill(null);
+
+const catClasses = {
+  conceito: 'cat-conceito',
+  formula: 'cat-formula',
+  algoritmo: 'cat-algoritmo',
+  limitacao: 'cat-limitacao'
+};
+
+function render() {
+  const q = questions[current];
+  document.getElementById('prog-label').textContent = `Questão ${current+1} de ${questions.length}`;
+  document.getElementById('score-label').textContent = `✅ ${score} acertos`;
+  document.getElementById('progress').style.width = `${((current+1)/questions.length)*100}%`;
+
+  const badge = document.getElementById('cat-badge');
+  badge.textContent = q.catLabel;
+  badge.className = 'category-badge ' + catClasses[q.cat];
+
+  document.getElementById('q-text').textContent = q.q;
+
+  const wrap = document.getElementById('options-wrap');
+  wrap.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (answered[current] ? ' disabled' : '');
+    if (answered[current]) {
+      if (i === q.correct) div.classList.add('correct');
+      else if (i === selectedOption[current] && answered[current] === 'wrong') div.classList.add('wrong');
+    }
+    div.innerHTML = `<span class="letter">${letters[i]}</span><span>${opt}</span>`;
+    if (!answered[current]) div.onclick = () => choose(i);
+    wrap.appendChild(div);
+  });
+
+  const fb = document.getElementById('feedback');
+  if (answered[current]) {
+    fb.className = 'feedback show ' + (answered[current] === 'correct' ? 'ok' : 'err');
+    fb.innerHTML = (answered[current] === 'correct' ? '✅ <strong>Correto!</strong> ' : '❌ <strong>Errado.</strong> ') + q.explanation;
+  } else {
+    fb.className = 'feedback';
+    fb.textContent = '';
+  }
+
+  document.getElementById('btn-next').textContent = current === questions.length-1 ? 'Ver Resultado →' : 'Próxima →';
+}
+
+function choose(i) {
+  const q = questions[current];
+  if (answered[current]) return;
+  selectedOption[current] = i;
+  if (i === q.correct) {
+    answered[current] = 'correct';
+    score++;
+  } else {
+    answered[current] = 'wrong';
+  }
+  render();
+}
+
+function nextQ() {
+  if (current === questions.length - 1) {
+    showResult(); return;
+  }
+  current++;
+  render();
+}
+
+function prevQ() {
+  if (current === 0) return;
+  current--;
+  render();
+}
+
+function showResult() {
+  document.getElementById('quiz-area').style.display = 'none';
+  const rs = document.getElementById('result-screen');
+  rs.classList.add('show');
+
+  document.getElementById('res-num').textContent = score;
+  document.getElementById('res-total').textContent = `de ${questions.length}`;
+
+  const pct = score / questions.length;
+  let msg, sub;
+  if (pct === 1)        { msg = "🏆 Perfeito! Mandou bem!"; sub = "Você domina o conteúdo. Boa apresentação!"; }
+  else if (pct >= 0.75) { msg = "💪 Muito bem!"; sub = "Revise as erradas e você está pronto."; }
+  else if (pct >= 0.5)  { msg = "📖 Quase lá!"; sub = "Vale rever os conceitos que erraste."; }
+  else                  { msg = "🔁 Precisa revisar!"; sub = "Releia o material e tente de novo."; }
+
+  document.getElementById('res-msg').textContent = msg;
+  document.getElementById('res-sub').textContent = sub;
+
+  const rl = document.getElementById('review-list');
+  rl.innerHTML = '<p style="color:#888;font-size:0.8rem;margin-bottom:12px;">📋 Revisão das respostas:</p>';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'review-item ' + (answered[i] === 'correct' ? 'ok' : 'err');
+    div.innerHTML = `<div class="ri-q"><strong>Q${i+1}:</strong> ${q.q}</div>
+      <div class="${answered[i]==='correct'?'ri-a':'ri-w'}">
+        ${answered[i]==='correct' ? '✅' : '❌'} ${q.options[q.correct]}
+      </div>`;
+    rl.appendChild(div);
+  });
+}
+
+function restart() {
+  current = 0; score = 0;
+  answered = new Array(questions.length).fill(null);
+  selectedOption = new Array(questions.length).fill(null);
+  document.getElementById('quiz-area').style.display = 'block';
+  document.getElementById('result-screen').classList.remove('show');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

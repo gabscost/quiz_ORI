@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz – Apresentação</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f0f1a;
+    color: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 6px; color: #a78bfa; letter-spacing: 1px; }
+  .subtitle { font-size: 0.85rem; color: #888; margin-bottom: 28px; }
+  .progress-bar {
+    width: 100%;
+    max-width: 520px;
+    height: 6px;
+    background: #2a2a3a;
+    border-radius: 99px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .card-wrapper {
+    width: 100%;
+    max-width: 520px;
+    perspective: 1000px;
+    cursor: pointer;
+  }
+  .card {
+    width: 100%;
+    min-height: 220px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s ease;
+    border-radius: 18px;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute;
+    width: 100%;
+    min-height: 220px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 18px;
+    padding: 28px 28px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .card-front {
+    background: linear-gradient(135deg, #1e1e2e, #2a2050);
+    border: 1px solid #3a3a5c;
+  }
+  .card-back {
+    background: linear-gradient(135deg, #1a2e1a, #1e3a2a);
+    border: 1px solid #2d5a3a;
+    transform: rotateY(180deg);
+  }
+  .tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    display: inline-block;
+    width: fit-content;
+  }
+  .tag-pergunta { background: #3b1d8a; color: #c4b5fd; }
+  .tag-resposta { background: #14532d; color: #86efac; }
+  .question {
+    font-size: 1.1rem;
+    line-height: 1.55;
+    color: #e2e2f0;
+    font-weight: 500;
+  }
+  .answer {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #d4fad4;
+  }
+  .answer strong { color: #86efac; }
+  .hint {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 16px;
+    text-align: center;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    width: 100%;
+    max-width: 520px;
+  }
+  button {
+    flex: 1;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-flip {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: white;
+  }
+  .btn-next {
+    background: linear-gradient(135deg, #059669, #047857);
+    color: white;
+  }
+  .btn-prev {
+    background: #2a2a3a;
+    color: #aaa;
+    flex: 0.5;
+  }
+  .counter {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 18px;
+  }
+  .difficulty {
+    display: flex;
+    gap: 4px;
+    margin-top: 12px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #333;
+  }
+  .dot.active { background: #f59e0b; }
+  .diff-label { font-size: 0.7rem; color: #666; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>🎓 Simulador de Perguntas</h1>
+<p class="subtitle">Clique no card para ver a resposta</p>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progress"></div>
+</div>
+
+<div class="card-wrapper" onclick="flipCard()">
+  <div class="card" id="card">
+    <div class="card-face card-front">
+      <span class="tag tag-pergunta">💬 Pergunta da sala</span>
+      <p class="question" id="question-text"></p>
+      <div class="difficulty" id="difficulty"></div>
+      <p class="hint">👆 clique para ver a resposta</p>
+    </div>
+    <div class="card-face card-back">
+      <span class="tag tag-resposta">✅ Resposta</span>
+      <p class="answer" id="answer-text"></p>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn-prev" onclick="prevCard(event)">← Voltar</button>
+  <button class="btn-flip" onclick="flipCard(event)">Virar card</button>
+  <button class="btn-next" onclick="nextCard(event)">Próxima →</button>
+</div>
+
+<p class="counter" id="counter"></p>
+
+<script>
+const cards = [
+  {
+    q: "Se uma universidade linkar para um site falso, esse site ganha credibilidade no TrustRank?",
+    a: "Sim, <strong>e esse é exatamente um dos problemas</strong>. O TrustRank propaga confiança pela estrutura de links — se uma semente confiável linka algo falso, passa um pouco de trust pra ele. Por isso as evoluções com BERT/GPT foram necessárias: pra analisar o <strong>conteúdo</strong> e não só a estrutura.",
+    dif: 2
+  },
+  {
+    q: "O que acontece com um site novo e legítimo que ainda não tem histórico de links?",
+    a: "Ele sofre o chamado <strong>problema de cold start</strong> — começa sem score, sem links, sem confiança. A solução moderna são as <strong>GNNs (Graph Neural Networks)</strong>, que conseguem atribuir scores a novos nós aprendendo a partir dos vizinhos já conhecidos.",
+    dif: 2
+  },
+  {
+    q: "Por que o fator de amortecimento α é ~0.85? O que muda se for 1 ou 0?",
+    a: "Com <strong>α = 1</strong>, toda confiança vem só dos links — sem peso de sementes, fácil de manipular. Com <strong>α = 0</strong>, só as sementes têm trust, nada se propaga. O valor ~0.85 é um equilíbrio empírico: propaga bem a confiança sem deixar ela vazar demais para sites ruins.",
+    dif: 3
+  },
+  {
+    q: "Qual a diferença prática entre Hub e Authority no HITS?",
+    a: "<strong>Authority</strong> = página que é referência no assunto (ex: artigo da Wikipedia). <strong>Hub</strong> = página que aponta para várias boas autoridades (ex: blog acadêmico com curadoria de links). Um site pode ser os dois ao mesmo tempo — e o HITS calcula isso de forma iterativa e simultânea.",
+    dif: 1
+  },
+  {
+    q: "Esses algoritmos conseguem combater desinformação gerada por IA em escala?",
+    a: "Os clássicos (PR, HITS, TrustRank) <strong>não conseguem sozinhos</strong> — eles analisam só estrutura de links, não conteúdo. As evoluções com <strong>BERT e GPT</strong> para análise semântica são a resposta mais atual, avaliando credibilidade do próprio texto. Mesmo assim, é uma corrida armamentista constante.",
+    dif: 3
+  },
+  {
+    q: "Quem decide quais são as sementes confiáveis do TrustRank? Isso não é subjetivo?",
+    a: "<strong>Sim, é um ponto crítico</strong>. A seleção é manual (gov.br, universidades, IFCN). O problema: erro humano e viés político podem comprometer todo o sistema. A solução proposta é usar <strong>múltiplos curadores independentes</strong> com critérios padronizados, reduzindo o impacto de um único ponto de falha.",
+    dif: 2
+  },
+  {
+    q: "Qual a diferença entre PageRank e TrustRank na prática?",
+    a: "<strong>PageRank mede popularidade</strong> — quanto mais links você recebe, maior o score. <strong>TrustRank mede confiabilidade</strong> — sua pontuação depende de quão confiáveis são as páginas que te linkam. Um site pode ser muito popular e pouco confiável. Os dois se complementam num motor de busca real.",
+    dif: 1
+  },
+  {
+    q: "Por que sites de fake news têm PageRank alto mesmo espalhando mentiras?",
+    a: "Porque o PR só conta <strong>quantidade e qualidade dos links</strong> — não lê o conteúdo. Sites de fake news são muito linkados entre si (formam redes fechadas) e às vezes recebem links de sites legítimos por engano. <strong>Isolamento topológico</strong> é uma das formas de detectar isso: esses sites raramente recebem links de autoridades reais.",
+    dif: 2
+  }
+];
+
+let current = 0;
+let flipped = false;
+
+function render() {
+  const c = cards[current];
+  document.getElementById('question-text').innerHTML = c.q;
+  document.getElementById('answer-text').innerHTML = c.a;
+  document.getElementById('counter').textContent = `Card ${current + 1} de ${cards.length}`;
+  document.getElementById('progress').style.width = `${((current + 1) / cards.length) * 100}%`;
+
+  const difEl = document.getElementById('difficulty');
+  difEl.innerHTML = '';
+  for (let i = 1; i <= 3; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i <= c.dif ? ' active' : '');
+    difEl.appendChild(d);
+  }
+  const label = document.createElement('span');
+  label.className = 'diff-label';
+  label.textContent = c.dif === 1 ? 'Fácil' : c.dif === 2 ? 'Médio' : 'Difícil';
+  difEl.appendChild(label);
+
+  // reset flip
+  flipped = false;
+  document.getElementById('card').classList.remove('flipped');
+}
+
+function flipCard(e) {
+  if (e) e.stopPropagation();
+  flipped = !flipped;
+  document.getElementById('card').classList.toggle('flipped', flipped);
+}
+
+function nextCard(e) {
+  if (e) e.stopPropagation();
+  current = (current + 1) % cards.length;
+  render();
+}
+
+function prevCard(e) {
+  if (e) e.stopPropagation();
+  current = (current - 1 + cards.length) % cards.length;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
