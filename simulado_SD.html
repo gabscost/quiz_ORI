@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulado REC — Sistemas Distribuídos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f5; color: #1a1a1a; padding: 16px; }
+  h1 { text-align: center; background: #1F3864; color: white; padding: 14px; border-radius: 8px; font-size: 16px; margin-bottom: 6px; }
+  #placar { text-align: center; background: #2E5FA3; color: white; padding: 8px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+  .bloco { background: white; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .bloco-titulo { background: #1F3864; color: white; padding: 8px 12px; font-size: 11px; font-weight: bold; }
+  .questao { padding: 12px; border-bottom: 1px solid #eee; }
+  .questao:last-child { border-bottom: none; }
+  .q-titulo { font-size: 12.5px; font-weight: bold; margin-bottom: 8px; color: #1F3864; }
+  .opcoes { display: flex; flex-direction: column; gap: 5px; }
+  .opcao { display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 6px; border: 1.5px solid #ddd; cursor: pointer; font-size: 11.5px; line-height: 1.4; transition: all 0.15s; background: #fafafa; }
+  .opcao:hover { border-color: #2E5FA3; background: #EEF4FF; }
+  .opcao input { margin-top: 2px; cursor: pointer; accent-color: #2E5FA3; flex-shrink: 0; }
+  .opcao.correta { background: #E1F5EE; border-color: #1D9E75; color: #04342C; }
+  .opcao.errada  { background: #FCEBEB; border-color: #E24B4A; color: #501313; }
+  .opcao.gabarito-show { background: #E1F5EE; border-color: #1D9E75; color: #04342C; }
+  .feedback { margin-top: 8px; padding: 7px 10px; border-radius: 5px; font-size: 11px; line-height: 1.5; display: none; }
+  .feedback.ok  { background: #E1F5EE; color: #04342C; border-left: 3px solid #1D9E75; }
+  .feedback.err { background: #FCEBEB; color: #501313; border-left: 3px solid #E24B4A; }
+  .btn-check { margin-top: 8px; padding: 6px 14px; background: #2E5FA3; color: white; border: none; border-radius: 5px; font-size: 11px; cursor: pointer; }
+  .btn-check:hover { background: #1F3864; }
+  .btn-check:disabled { background: #aaa; cursor: default; }
+  #btn-final { display: block; margin: 16px auto; padding: 12px 32px; background: #1F3864; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+  #resultado { display: none; text-align: center; background: white; border-radius: 8px; padding: 20px; margin-top: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  #resultado h2 { font-size: 22px; margin-bottom: 8px; }
+  #resultado p  { font-size: 14px; color: #444; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 6px; }
+  .badge-ok  { background: #E1F5EE; color: #085041; }
+  .badge-err { background: #FCEBEB; color: #A32D2D; }
+</style>
+</head>
+<body>
+
+<h1>🎓 Simulado REC — Sistemas Distribuídos</h1>
+<div id="placar">Respondidas: <span id="cnt-resp">0</span>/20 &nbsp;|&nbsp; Acertos: <span id="cnt-certo">0</span> &nbsp;|&nbsp; Erros: <span id="cnt-erro">0</span></div>
+
+<div id="quiz"></div>
+<button id="btn-final" onclick="finalizar()">Ver resultado final</button>
+<div id="resultado"></div>
+
+<script>
+const questoes = [
+  {
+    bloco: "📦 SD Básico + Arquiteturas",
+    q: "Q1. Marque a alternativa CORRETA sobre Sistemas Distribuídos:",
+    ops: [
+      "SD é qualquer coleção de computadores interligados por rede.",
+      "Ao usar um SD, o usuário sempre sabe quais computadores estão envolvidos.",
+      "Um sistema é distribuído quando seus componentes são replicados em múltiplos nós.",
+      "Nenhuma das anteriores está correta."
+    ],
+    resp: 3,
+    exp: "SD é um conjunto de computadores autônomos que, para o usuário, aparece como um sistema único. Nenhuma das opções A, B ou C captura essa definição corretamente."
+  },
+  {
+    bloco: null,
+    q: "Q2. Qual estilo arquitetural é conhecido como publish/subscribe?",
+    ops: [
+      "Arquitetura cliente-servidor",
+      "Arquitetura baseada em objetos",
+      "Arquitetura baseada em eventos",
+      "Arquitetura multicamadas"
+    ],
+    resp: 2,
+    exp: "Na arquitetura baseada em eventos, publishers geram eventos e subscribers recebem os eventos que lhes interessam via event bus — modelo clássico de publish/subscribe."
+  },
+  {
+    bloco: null,
+    q: "Q3. Qual o papel do Proxy e Skeleton em arquiteturas baseadas em objetos distribuídos?",
+    ops: [
+      "Filtrar e fazer cache de mensagens entre objetos.",
+      "Interceptar chamadas, fazer marshalling e enviar/receber dados entre objetos remotos.",
+      "Implementar cópia de objetos remotos em um nó local.",
+      "Garantir que um método local seja executado remotamente sem serialização."
+    ],
+    resp: 1,
+    exp: "O Proxy (lado cliente) intercepta a chamada, serializa os argumentos (marshalling) e envia ao servidor. O Skeleton (lado servidor) desempacota, chama o método local e devolve o resultado."
+  },
+  {
+    bloco: null,
+    q: "Q4. Sobre arquiteturas P2P, marque a CORRETA:",
+    ops: [
+      "CDNs são baseadas em redes P2P estruturadas.",
+      "BitTorrent e Chord são exemplos de arquiteturas P2P.",
+      "Arquiteturas P2P são sempre centralizadas.",
+      "Redes overlay não são usadas em sistemas P2P."
+    ],
+    resp: 1,
+    exp: "BitTorrent (P2P não estruturado) e Chord (P2P estruturado/DHT) são exemplos clássicos de arquiteturas P2P. CDNs usam edge-servers, não P2P."
+  },
+  {
+    bloco: "🔌 Comunicação + Middleware",
+    q: "Q5. Qual o papel dos stubs no modelo RPC?",
+    ops: [
+      "Executar o procedimento remoto localmente sem envio de dados.",
+      "Interceptar a chamada, fazer marshalling, enviar ao servidor, desempacotar e chamar o procedimento local.",
+      "Repassar a chamada ao SO sem modificação.",
+      "Realizar apenas o empacotamento dos dados, sem envio."
+    ],
+    resp: 1,
+    exp: "O stub cliente intercepta a chamada local, converte argumentos para representação abstrata (marshalling), envia ao servidor. O stub servidor desempacota e chama o procedimento real. Resposta inversa no retorno."
+  },
+  {
+    bloco: null,
+    q: "Q6. O modelo Client/Server é geralmente baseado em qual modelo de comunicação?",
+    ops: [
+      "Assíncrono persistente",
+      "Síncrono persistente",
+      "Síncrono transiente",
+      "Assíncrono transiente"
+    ],
+    resp: 2,
+    exp: "Client/Server usa comunicação síncrona (cliente bloqueia esperando resposta) e transiente (ambos precisam estar executando no momento da comunicação)."
+  },
+  {
+    bloco: null,
+    q: "Q7. Sobre comunicação ASSÍNCRONA, marque a correta:",
+    ops: [
+      "O sender é bloqueado até a mensagem ser recebida.",
+      "O sender NÃO é bloqueado após enviar a mensagem.",
+      "Apenas o receiver é bloqueado.",
+      "Ambos sender e receiver ficam bloqueados."
+    ],
+    resp: 1,
+    exp: "Na comunicação assíncrona, o sender envia a mensagem e continua sua execução imediatamente — não bloqueia esperando resposta. Útil para ocultar latência de comunicação."
+  },
+  {
+    bloco: "🏷️ Naming + Synchronization",
+    q: "Q8. O principal objetivo de um sistema de nomeação em SD é:",
+    ops: [
+      "Permitir que recursos sejam acessados a partir de seus endereços.",
+      "Oferecer uma forma direta de acesso a entidades.",
+      "Permitir que entidades sejam acessadas INDEPENDENTE de seus endereços.",
+      "Servir como base de dados de endereços IP."
+    ],
+    resp: 2,
+    exp: "O objetivo central é desacoplar nome de endereço. O usuário usa o nome; o sistema resolve onde a entidade está — independente de qual endereço ela ocupa atualmente."
+  },
+  {
+    bloco: null,
+    q: "Q9. Sobre relógios de Lamport, marque a CORRETA:",
+    ops: [
+      "Se C(a) < C(b), então obrigatoriamente a → b.",
+      "Se a → b, então C(a) < C(b).",
+      "Lamport detecta completamente relações causais entre eventos.",
+      "Lamport usa vetores de N posições para rastrear eventos."
+    ],
+    resp: 1,
+    exp: "Lamport garante: se a→b então C(a)<C(b). O CONTRÁRIO NÃO é verdade — C(a)<C(b) não implica a→b. Para detectar causalidade completa, usa-se Vector Clock (vetores de N posições)."
+  },
+  {
+    bloco: null,
+    q: "Q10. O algoritmo de Berkeley difere do NTP porque:",
+    ops: [
+      "Berkeley usa fonte externa (UTC); NTP usa média interna.",
+      "Berkeley calcula média entre os nós e envia ajuste a cada um; NTP usa fonte externa (UTC).",
+      "Ambos usam fonte externa, mas Berkeley é centralizado.",
+      "NTP é interno e Berkeley é externo."
+    ],
+    resp: 1,
+    exp: "NTP sincroniza com fonte EXTERNA (UTC via satélite/stratum). Berkeley é INTERNO: servidor ativo mede o tempo de todos os nós, calcula a média e envia o ajuste a cada um."
+  },
+  {
+    bloco: null,
+    q: "Q11. No Ricart-Agrawala, um processo concede OK para entrar na RC quando:",
+    ops: [
+      "Ele não quer entrar na RC, ou seu timestamp é MAIOR que o do solicitante.",
+      "Ele não quer entrar na RC, ou seu timestamp é MENOR que o do solicitante.",
+      "Sempre que recebe uma requisição, independente do estado.",
+      "Apenas quando está fora da RC e sem pedidos pendentes."
+    ],
+    resp: 0,
+    exp: "Concede OK se: (1) não quer entrar na RC, OU (2) quer entrar mas seu ts é MAIOR que o do solicitante (solicitante tem prioridade por ter pedido antes — ts menor = pediu antes)."
+  },
+  {
+    bloco: "🔄 Consistency + Replication",
+    q: "Q12. Um data store é SEQUENCIALMENTE CONSISTENTE quando:",
+    ops: [
+      "Todas as operações aparecem na mesma ordem em todos os processos.",
+      "Existe alguma ordem global válida na qual as ops podem ser intercaladas, respeitando a ordem de cada processo.",
+      "As operações são executadas aleatoriamente em todos os processos.",
+      "As leituras sempre retornam o valor mais recente globalmente."
+    ],
+    resp: 1,
+    exp: "Consistência sequencial: existe UMA intercalação global válida das operações de todos os processos. Cada processo vê suas ops em ordem — mas a ordem global não precisa ser a do relógio real."
+  },
+  {
+    bloco: null,
+    q: "Q13. A diferença entre consistência CAUSAL e SEQUENTIAL é:",
+    ops: [
+      "São equivalentes; nenhuma é mais forte que a outra.",
+      "Causal é mais forte: ordena todas as operações globalmente.",
+      "Sequential é mais forte: ordena TODAS as ops. Causal ordena apenas as causalmente relacionadas.",
+      "Causal garante que leituras nunca retornam valores antigos."
+    ],
+    resp: 2,
+    exp: "Sequential > Causal em força. Sequential exige uma ordem global para TODAS as operações. Causal só exige que ops causalmente relacionadas apareçam na mesma ordem — ops concorrentes podem divergir."
+  },
+  {
+    bloco: null,
+    q: "Q14. O modelo client-centric 'Monotonic Reads' garante:",
+    ops: [
+      "O cliente nunca lê valor mais antigo que o último que leu.",
+      "As escritas do cliente são serializadas na ordem em que foram feitas.",
+      "O cliente sempre vê suas próprias escritas.",
+      "Escritas após leituras são feitas em versão >= à que foi lida."
+    ],
+    resp: 0,
+    exp: "Monotonic Reads: cliente nunca 'volta no tempo' nas leituras. Se leu x=5, próxima leitura retorna valor >= aquele. Contexto Shopify: evita que cliente veja réplica desatualizada após já ter visto atualizada."
+  },
+  {
+    bloco: "📁 Distributed File Systems",
+    q: "Q15. NFS v3 é STATELESS. O que isso significa na prática?",
+    ops: [
+      "O servidor não armazena arquivos permanentemente.",
+      "O servidor não mantém estado da sessão — não sabe quais arquivos estão abertos.",
+      "O cliente não pode fazer cache de arquivos.",
+      "As operações não são idempotentes."
+    ],
+    resp: 1,
+    exp: "Stateless: servidor não guarda estado entre requisições. Cada req é autossuficiente. Isso garante tolerância a falhas (servidor pode reiniciar sem perder estado). Ops são idempotentes — podem ser repetidas sem efeito colateral."
+  },
+  {
+    bloco: null,
+    q: "Q16. O Lease no NFSv4 serve para:",
+    ops: [
+      "Autenticar o cliente via Kerberos.",
+      "Garantir que dois clientes não abram o mesmo arquivo.",
+      "Conceder permissão temporária ao cliente; se não renovada, servidor recupera o recurso.",
+      "Comprimir dados durante a transmissão."
+    ],
+    resp: 2,
+    exp: "Lease = permissão temporária com prazo. Cliente renova periodicamente. Se cliente crashar e não renovar, servidor recupera o recurso automaticamente — evita bloqueio permanente por cliente morto."
+  },
+  {
+    bloco: "💾 Distributed Transactions",
+    q: "Q17. No Two-Phase Commit (2PC), se um participante envia VOTE-ABORT:",
+    ops: [
+      "Apenas ele faz rollback; os demais continuam.",
+      "O coordenador envia GLOBAL-ABORT para TODOS os participantes.",
+      "O coordenador reinicia a Fase 1.",
+      "O participante é removido da transação e os outros continuam."
+    ],
+    resp: 1,
+    exp: "Atomicidade: 1 VOTE-ABORT de qualquer participante = GLOBAL-ABORT para TODOS. Ninguém pode fazer commit parcialmente. É tudo ou nada."
+  },
+  {
+    bloco: null,
+    q: "Q18. Phantom deadlock ocorre por causa de:",
+    ops: [
+      "Ausência de informações no detector global.",
+      "Múltiplas cópias conflitantes no detector.",
+      "DESATUALIZAÇÃO do wait-for graph no detector global.",
+      "Falha do lock manager local."
+    ],
+    resp: 2,
+    exp: "O grafo enviado ao detector estava desatualizado. O deadlock já havia sido resolvido quando o detector o identificou. Resultado: aborta transação que não precisava ser abortada (falso positivo)."
+  },
+  {
+    bloco: null,
+    q: "Q19. Sobre Edge Chasing para detecção de deadlock, marque a CORRETA:",
+    ops: [
+      "Usa um lock manager global que combina grafos locais.",
+      "Não existe detector global — detecção por lock managers locais via propagação de probes.",
+      "Não é possível resolver o deadlock, apenas detectar.",
+      "É baseado em broadcast de mensagens para todos os nós."
+    ],
+    resp: 1,
+    exp: "Edge chasing: sem detector global. Lock managers locais propagam 'probes' seguindo arestas do wait-for graph. Se probe retorna ao originador = ciclo = deadlock detectado. Resolve abortando 1 transação."
+  },
+  {
+    bloco: null,
+    q: "Q20. Em recuperação de transações, marque a INCORRETA:",
+    ops: [
+      "Recovery manager garante durabilidade e atomicidade.",
+      "Uma das técnicas usadas é shadow versions.",
+      "TODOS os casos de falha são recuperáveis, exceto falha do disco do recovery file.",
+      "Objetos são armazenados em memória volátil E no arquivo de recuperação."
+    ],
+    resp: 2,
+    exp: "INCORRETA: nem todos os casos são recuperáveis — existem outros cenários irrecuperáveis além da falha do disco do recovery file. A afirmação generaliza demais."
+  }
+];
+
+let respostas = new Array(questoes.length).fill(null);
+let confirmadas = new Array(questoes.length).fill(false);
+let acertos = 0, erros = 0;
+
+function atualizarPlacar() {
+  document.getElementById('cnt-resp').textContent = confirmadas.filter(Boolean).length;
+  document.getElementById('cnt-certo').textContent = acertos;
+  document.getElementById('cnt-erro').textContent = erros;
+}
+
+function confirmar(qi) {
+  if (confirmadas[qi]) return;
+  const sel = respostas[qi];
+  if (sel === null) { alert('Selecione uma alternativa antes de confirmar!'); return; }
+  confirmadas[qi] = true;
+
+  const ops = document.querySelectorAll(`.q${qi} .opcao`);
+  const fb  = document.querySelector(`.q${qi} .feedback`);
+  const btn = document.querySelector(`.q${qi} .btn-check`);
+  btn.disabled = true;
+
+  ops.forEach((op, i) => {
+    op.querySelector('input').disabled = true;
+    if (i === questoes[qi].resp) op.classList.add('correta');
+    else if (i === sel)          op.classList.add('errada');
+  });
+
+  fb.style.display = 'block';
+  if (sel === questoes[qi].resp) {
+    acertos++;
+    fb.className = 'feedback ok';
+    fb.innerHTML = '✅ <strong>Correto!</strong> ' + questoes[qi].exp;
+  } else {
+    erros++;
+    fb.className = 'feedback err';
+    fb.innerHTML = '❌ <strong>Errado.</strong> ' + questoes[qi].exp;
+  }
+  atualizarPlacar();
+}
+
+function finalizar() {
+  // confirmar todas não respondidas
+  questoes.forEach((_, qi) => { if (!confirmadas[qi] && respostas[qi] !== null) confirmar(qi); });
+  const total = confirmadas.filter(Boolean).length;
+  const pct = Math.round((acertos / questoes.length) * 100);
+  const nota20 = ((acertos / questoes.length) * 20).toFixed(1);
+  const div = document.getElementById('resultado');
+  div.style.display = 'block';
+  div.innerHTML = `
+    <h2>${acertos >= 12 ? '🎉' : acertos >= 8 ? '📚' : '⚠️'} ${acertos}/20 acertos (${pct}%)</h2>
+    <p style="margin:8px 0;font-size:16px;font-weight:bold;color:#1F3864">Nota equivalente: <span style="color:${acertos>=12?'#1D9E75':'#E24B4A'}">${nota20}/20 pontos</span></p>
+    <p style="margin-top:6px">${acertos >= 12 ? '✅ Você passaria na rec! Continue revisando os erros.' : acertos >= 8 ? '⚠️ Perto! Revise especialmente os erros marcados acima.' : '❗ Revise os tópicos com mais erros antes da prova.'}</p>
+    <p style="margin-top:10px;font-size:12px;color:#666">Dica: você precisa de ~2.28 pts na rec de 20 para passar. Isso equivale a acertar só 3 questões!</p>
+  `;
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Renderizar
+const quiz = document.getElementById('quiz');
+let blocoAtual = '';
+let blocoDiv = null;
+
+questoes.forEach((q, qi) => {
+  if (q.bloco && q.bloco !== blocoAtual) {
+    blocoAtual = q.bloco;
+    blocoDiv = document.createElement('div');
+    blocoDiv.className = 'bloco';
+    const titulo = document.createElement('div');
+    titulo.className = 'bloco-titulo';
+    titulo.textContent = q.bloco;
+    blocoDiv.appendChild(titulo);
+    quiz.appendChild(blocoDiv);
+  }
+
+  const div = document.createElement('div');
+  div.className = `questao q${qi}`;
+  let html = `<div class="q-titulo">${q.q}</div><div class="opcoes">`;
+  q.ops.forEach((op, oi) => {
+    html += `<label class="opcao" onclick="selecionar(${qi},${oi},this)">
+      <input type="radio" name="q${qi}" value="${oi}"> ${String.fromCharCode(65+oi)}) ${op}
+    </label>`;
+  });
+  html += `</div>
+    <button class="btn-check" onclick="confirmar(${qi})">Confirmar resposta</button>
+    <div class="feedback"></div>`;
+  div.innerHTML = html;
+  blocoDiv.appendChild(div);
+});
+
+function selecionar(qi, oi, label) {
+  if (confirmadas[qi]) return;
+  respostas[qi] = oi;
+  document.querySelectorAll(`.q${qi} .opcao`).forEach(el => el.style.background = '');
+}
+</script>
+</body>
+</html>
