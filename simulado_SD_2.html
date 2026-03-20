@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulado 2 REC — Sistemas Distribuídos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f5; color: #1a1a1a; padding: 16px; }
+  h1 { text-align: center; background: #1F3864; color: white; padding: 14px; border-radius: 8px; font-size: 16px; margin-bottom: 6px; }
+  #placar { text-align: center; background: #2E5FA3; color: white; padding: 8px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+  .bloco { background: white; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .bloco-titulo { background: #1F3864; color: white; padding: 8px 12px; font-size: 11px; font-weight: bold; }
+  .questao { padding: 12px; border-bottom: 1px solid #eee; }
+  .questao:last-child { border-bottom: none; }
+  .q-titulo { font-size: 12.5px; font-weight: bold; margin-bottom: 8px; color: #1F3864; }
+  .opcoes { display: flex; flex-direction: column; gap: 5px; }
+  .opcao { display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 6px; border: 1.5px solid #ddd; cursor: pointer; font-size: 11.5px; line-height: 1.4; transition: all 0.15s; background: #fafafa; }
+  .opcao:hover:not(.bloqueada) { border-color: #2E5FA3; background: #EEF4FF; }
+  .opcao input { margin-top: 2px; cursor: pointer; accent-color: #2E5FA3; flex-shrink: 0; }
+  .opcao.correta { background: #E1F5EE !important; border-color: #1D9E75 !important; color: #04342C; }
+  .opcao.errada  { background: #FCEBEB !important; border-color: #E24B4A !important; color: #501313; }
+  .opcao.bloqueada { cursor: default; }
+  .feedback { margin-top: 8px; padding: 7px 10px; border-radius: 5px; font-size: 11px; line-height: 1.5; display: none; }
+  .feedback.ok  { background: #E1F5EE; color: #04342C; border-left: 3px solid #1D9E75; }
+  .feedback.err { background: #FCEBEB; color: #501313; border-left: 3px solid #E24B4A; }
+  .btn-check { margin-top: 8px; padding: 6px 14px; background: #2E5FA3; color: white; border: none; border-radius: 5px; font-size: 11px; cursor: pointer; }
+  .btn-check:hover:not(:disabled) { background: #1F3864; }
+  .btn-check:disabled { background: #aaa; cursor: default; }
+  #btn-final { display: block; margin: 16px auto; padding: 12px 32px; background: #1F3864; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+  #btn-final:hover { background: #2E5FA3; }
+  #resultado { display: none; text-align: center; background: white; border-radius: 8px; padding: 20px; margin-top: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  #resultado h2 { font-size: 22px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>🎓 Simulado 2 REC — Sistemas Distribuídos</h1>
+<div id="placar">Respondidas: <span id="cnt-resp">0</span>/20 &nbsp;|&nbsp; ✅ Acertos: <span id="cnt-certo">0</span> &nbsp;|&nbsp; ❌ Erros: <span id="cnt-erro">0</span></div>
+
+<div id="quiz"></div>
+<button id="btn-final" onclick="finalizar()">📊 Ver resultado final</button>
+<div id="resultado"></div>
+
+<script>
+const questoes = [
+  // ── BLOCO 1: SD Básico
+  {
+    bloco: "📦 SD Básico",
+    q: "Q1. Sobre transparência em SDs, qual NÃO é um tipo estudado?",
+    ops: [
+      "Transparência de acesso",
+      "Transparência de localização",
+      "Transparência de processamento",
+      "Transparência de replicação",
+      "Transparência de falha"
+    ],
+    resp: 2,
+    exp: "Transparência de PROCESSAMENTO não é um tipo estudado. Os tipos são: acesso, localização, migração, replicação, concorrência, falha e desempenho."
+  },
+  {
+    bloco: null,
+    q: "Q2. Quais são problemas de ESCALABILIDADE em SDs? (marque a errada)",
+    ops: [
+      "Serviços centralizados",
+      "Dados centralizados",
+      "Algoritmos centralizados",
+      "Diversidade e heterogeneidade de plataformas",
+      "Largura de banda das redes"
+    ],
+    resp: 3,
+    exp: "Os 3 problemas clássicos de escalabilidade são: serviços centralizados, dados centralizados e algoritmos centralizados. Heterogeneidade não é um problema de escalabilidade — é um problema de interoperabilidade."
+  },
+  {
+    bloco: null,
+    q: "Q3. A técnica de 'ocultar a latência' pode ser entendida como:",
+    ops: [
+      "Ocultar o endereço de rede dos hosts do SD.",
+      "Evitar ao máximo o uso de comunicação síncrona.",
+      "Usar sempre capacidade de rede maior que a necessária.",
+      "Não apresentar os atrasos na tela ao usuário."
+    ],
+    resp: 1,
+    exp: "Ocultar latência = evitar comunicação SÍNCRONA. Em vez de bloquear esperando resposta, inicia a comunicação e executa outra atividade enquanto espera (comunicação assíncrona + threads)."
+  },
+  // ── BLOCO 2: Arquiteturas
+  {
+    bloco: "🏗️ Arquiteturas de SD",
+    q: "Q4. Estilos arquiteturais vs Arquiteturas de sistema — qual define corretamente seus papéis?",
+    ops: [
+      "Estilo define nós físicos; arquitetura define software.",
+      "Estilo define organização dos componentes de software e como se relacionam; arquitetura define localização física dos componentes.",
+      "São sinônimos — ambos definem a organização lógica do SD.",
+      "Estilo define paradigma de programação; arquitetura define protocolos de rede."
+    ],
+    resp: 1,
+    exp: "Estilo arquitetural = organização lógica dos componentes de software e seus relacionamentos. Arquitetura de sistema = onde esses componentes ficam fisicamente (em quais nós)."
+  },
+  {
+    bloco: null,
+    q: "Q5. CDNs (Content Delivery Networks) são baseadas em:",
+    ops: [
+      "Superpeers",
+      "Edge-servers",
+      "Redes P2P estruturadas",
+      "Redes P2P não estruturadas"
+    ],
+    resp: 1,
+    exp: "CDNs usam edge-servers — servidores distribuídos geograficamente próximos aos clientes para entregar conteúdo com baixa latência. Não são P2P."
+  },
+  {
+    bloco: null,
+    q: "Q6. Em arquiteturas P2P NÃO estruturadas, o lookup é baseado em:",
+    ops: [
+      "Indexing search centralizado",
+      "Unicast direto ao nó responsável",
+      "Flooding e Random walk",
+      "Tabelas de hash distribuídas (DHT)"
+    ],
+    resp: 2,
+    exp: "P2P não estruturado (ex: Gnutella): busca por flooding (pergunta a todos os vizinhos) ou random walk (pergunta a vizinhos aleatórios). DHT é de P2P estruturado (Chord)."
+  },
+  // ── BLOCO 3: Comunicação
+  {
+    bloco: "🔌 Comunicação",
+    q: "Q7. Middlewares de SD se localizam tipicamente em quais camadas do modelo OSI?",
+    ops: [
+      "Camadas 1 e 2 (física e enlace)",
+      "Camadas 3 e 4 (rede e transporte)",
+      "Camadas 5, 6 e 7 (sessão, apresentação e aplicação)",
+      "Apenas camada 7 (aplicação)"
+    ],
+    resp: 2,
+    exp: "Middlewares atuam nas camadas superiores do OSI: sessão (L5), apresentação (L6) e aplicação (L7). Ficam entre o SO/rede e a aplicação do usuário."
+  },
+  {
+    bloco: null,
+    q: "Q8. Comunicação TRANSIENTE tem como característica:",
+    ops: [
+      "Sender e receiver podem não estar executando — middleware armazena a mensagem.",
+      "Sender e receiver precisam estar executando no momento do envio e entrega.",
+      "Apenas o sender precisa estar executando.",
+      "Apenas o receiver precisa estar executando."
+    ],
+    resp: 1,
+    exp: "Transiente = ambos precisam estar executando. Se o receiver não estiver ativo, a mensagem é descartada. Contraste com persistente: middleware armazena até o receiver estar disponível."
+  },
+  {
+    bloco: null,
+    q: "Q9. Qual das opções abaixo é um exemplo de representação abstrata de dados usada por middlewares RPC?",
+    ops: [
+      "ASN.2 e RMI",
+      "JSON e XML",
+      "OSI e TCP",
+      "CORBA e DCOM"
+    ],
+    resp: 1,
+    exp: "JSON e XML são formatos de representação abstrata de dados (serialização independente de plataforma). RMI é um middleware Java, não um formato. OSI/TCP são protocolos de rede."
+  },
+  // ── BLOCO 4: Threads e Servidores
+  {
+    bloco: "⚙️ Threads e Servidores",
+    q: "Q10. O modelo de threads no USER-SPACE (M:1) em nó multiprocessado:",
+    ops: [
+      "Permite executar cada thread em um processador diferente.",
+      "NÃO permite executar threads em processadores diferentes — todas no mesmo.",
+      "É equivalente ao modelo kernel-space (1:1) em termos de paralelismo.",
+      "Permite paralelismo real pois o SO gerencia cada thread individualmente."
+    ],
+    resp: 1,
+    exp: "M:1 (user-space): N threads do processo mapeadas para 1 thread de kernel. O SO só enxerga 1 thread — não há paralelismo real em multiprocessadores. Apenas 1:1 (kernel-space) e M:N (híbrido) permitem paralelismo real."
+  },
+  {
+    bloco: null,
+    q: "Q11. Um servidor FSM (Finite-State Machine) possui quais características?",
+    ops: [
+      "Pode usar chamadas bloqueantes, suporta múltiplos fluxos independentes.",
+      "NÃO pode usar chamadas bloqueantes, NÃO suporta múltiplos fluxos independentes, atende múltiplas requisições concorrentemente.",
+      "Pode usar chamadas bloqueantes, não suporta múltiplos fluxos, atende 1 requisição por vez.",
+      "É equivalente a um servidor multithreaded em todos os aspectos."
+    ],
+    resp: 1,
+    exp: "FSM: NÃO usa chamadas bloqueantes (usaria comunicação assíncrona/não-bloqueante), NÃO tem múltiplos fluxos independentes (1 fluxo de execução), mas atende múltiplas requisições concorrentemente via estado."
+  },
+  {
+    bloco: null,
+    q: "Q12. Um servidor STATELESS é aquele que:",
+    ops: [
+      "Não mantém informações de estado dos clientes entre requisições.",
+      "Não permite que clientes troquem de servidor a cada requisição.",
+      "Exige que o cliente mantenha conexão persistente.",
+      "Armazena o estado do cliente em memória volátil apenas."
+    ],
+    resp: 0,
+    exp: "Stateless: servidor não guarda estado entre requisições. Cada requisição encapsula TODAS as informações necessárias. Vantagem: tolerância a falhas (servidor pode reiniciar sem perder nada). Exemplo: NFS v3."
+  },
+  // ── BLOCO 5: Naming
+  {
+    bloco: "🏷️ Naming",
+    q: "Q13. No DNS, a resolução RECURSIVA tem como vantagem em relação à iterativa:",
+    ops: [
+      "É mais simples de implementar no cliente.",
+      "Gera menos carga nos servidores intermediários.",
+      "Permite melhor caching nos servidores intermediários.",
+      "O cliente faz cada consulta diretamente, sem intermediários."
+    ],
+    resp: 2,
+    exp: "Recursiva: servidor faz todo o trabalho pelo cliente → resultados podem ser cacheados nos servidores intermediários para consultas futuras. Iterativa é mais simples e gera menos carga nos servidores, mas sem caching nos intermediários."
+  },
+  {
+    bloco: null,
+    q: "Q14. Forwarding pointers para resolução de nomes — qual é o principal PROBLEMA?",
+    ops: [
+      "Só funciona em redes locais (LAN).",
+      "Não permite que a entidade migre mais de uma vez.",
+      "A cadeia de ponteiros pode ficar muito longa, tornando a resolução lenta.",
+      "Requer broadcast para encontrar a entidade."
+    ],
+    resp: 2,
+    exp: "Cada migração adiciona um ponteiro na cadeia. Com muitas migrações, o cliente precisa seguir muitos saltos. Solução: home-based naming (nó fixo sempre sabe o local atual)."
+  },
+  // ── BLOCO 6: Sync
+  {
+    bloco: "⏱️ Synchronization",
+    q: "Q15. Vector Clock — como se calcula ao RECEBER uma mensagem?",
+    ops: [
+      "V[i]++ apenas, ignorando o vetor da mensagem.",
+      "V = Vmsg para todos os componentes, depois V[i]++.",
+      "V[j] = max(V[j], Vmsg[j]) para todo j, depois V[i]++.",
+      "V[i] = max(V[i], Vmsg[i]) apenas para o próprio processo."
+    ],
+    resp: 2,
+    exp: "Ao receber: para cada posição j, pega o máximo entre o próprio vetor e o da mensagem. Depois incrementa V[i] (posição do próprio processo). Isso garante que causalidade completa seja capturada."
+  },
+  {
+    bloco: null,
+    q: "Q16. No algoritmo Bully para eleição, o processo vencedor é:",
+    ops: [
+      "O que responder mais rápido à mensagem Election.",
+      "O de menor ID que ainda esteja ativo.",
+      "O de MAIOR ID ativo no sistema.",
+      "O que iniciou a eleição."
+    ],
+    resp: 2,
+    exp: "Bully: o processo com maior ID 'bully' (intimida) os menores. Envia Election para todos com ID maior. Se ninguém responder, ele se declara coordenador e manda Coordinator para todos."
+  },
+  // ── BLOCO 7: Consistency + DFS + Transactions
+  {
+    bloco: "🔄 Consistency + DFS + Transactions",
+    q: "Q17. AFS (Andrew File System) difere do NFS v3 porque:",
+    ops: [
+      "AFS usa remote access model; NFS usa upload-download.",
+      "AFS é stateful e usa callbacks; NFS v3 é stateless e usa timestamps.",
+      "AFS não suporta cache no cliente; NFS suporta.",
+      "AFS é mais simples e tem menor escalabilidade que NFS."
+    ],
+    resp: 1,
+    exp: "AFS: stateful, cache de arquivo inteiro (whole-file), servidor notifica cliente via callback quando arquivo muda. NFS v3: stateless, acesso remoto por blocos, cliente valida cache via timestamp."
+  },
+  {
+    bloco: null,
+    q: "Q18. Sobre o protocolo de replicação por QUORUM, é correto que:",
+    ops: [
+      "Nw + Nr > N garante que a leitura sempre vê a escrita mais recente.",
+      "Nr > N/2 é suficiente para garantir consistência de escrita.",
+      "Nw e Nr podem ser qualquer valor desde que Nw = Nr.",
+      "Quorum só funciona com consistência eventual."
+    ],
+    resp: 0,
+    exp: "Nw + Nr > N: conjuntos de escrita e leitura sempre se sobrepõem — leitura sempre pega pelo menos 1 nó com a versão mais recente. Nw > N/2 serializa escritas (evita dois writes concorrentes no mesmo quorum)."
+  },
+  {
+    bloco: null,
+    q: "Q19. Intention lists em transações distribuídas garantem:",
+    ops: [
+      "Recuperação automática de deadlocks.",
+      "Que a transação transite de prepared → committed ou aborted de forma consistente.",
+      "O armazenamento dos resultados de transações confirmadas.",
+      "O histórico de valores entre múltiplas transações commitadas."
+    ],
+    resp: 1,
+    exp: "Intention lists registram as intenções da transação antes de executar de fato. Garantem que, após prepared, a transação transite consistentemente para committed ou aborted — parte do protocolo de commit."
+  },
+  {
+    bloco: null,
+    q: "Q20. Sobre lock manager em transações distribuídas, qual afirmação é CORRETA?",
+    ops: [
+      "Lock é liberado somente quando a transação é abortada.",
+      "O uso de lock manager evita deadlocks distribuídos.",
+      "A ordem de locks em todos os servidores deve ser a mesma.",
+      "Lock managers se sincronizam para que decisões locais considerem o estado global."
+    ],
+    resp: 3,
+    exp: "Lock managers se sincronizam entre si para que suas decisões locais considerem o estado global das transações. Lock é liberado no COMMIT ou ABORT. Lock manager NÃO evita deadlocks — apenas gerencia os locks."
+  }
+];
+
+let respostas   = new Array(questoes.length).fill(null);
+let confirmadas = new Array(questoes.length).fill(false);
+let acertos = 0, erros = 0;
+
+function atualizarPlacar() {
+  document.getElementById('cnt-resp').textContent  = confirmadas.filter(Boolean).length;
+  document.getElementById('cnt-certo').textContent = acertos;
+  document.getElementById('cnt-erro').textContent  = erros;
+}
+
+function selecionar(qi, oi) {
+  if (confirmadas[qi]) return;
+  respostas[qi] = oi;
+  document.querySelectorAll(`.q${qi} .opcao`).forEach((el, i) => {
+    el.style.background = i === oi ? '#EEF4FF' : '';
+    el.style.borderColor = i === oi ? '#2E5FA3' : '';
+  });
+}
+
+function confirmar(qi) {
+  if (confirmadas[qi]) return;
+  if (respostas[qi] === null) { alert('Selecione uma alternativa!'); return; }
+  confirmadas[qi] = true;
+
+  const ops = document.querySelectorAll(`.q${qi} .opcao`);
+  const fb  = document.querySelector(`.q${qi} .feedback`);
+  const btn = document.querySelector(`.q${qi} .btn-check`);
+  btn.disabled = true;
+
+  ops.forEach((op, i) => {
+    op.classList.add('bloqueada');
+    op.querySelector('input').disabled = true;
+    op.style.background = '';
+    op.style.borderColor = '';
+    if (i === questoes[qi].resp)          op.classList.add('correta');
+    else if (i === respostas[qi])         op.classList.add('errada');
+  });
+
+  fb.style.display = 'block';
+  if (respostas[qi] === questoes[qi].resp) {
+    acertos++;
+    fb.className = 'feedback ok';
+    fb.innerHTML = '✅ <strong>Correto!</strong> ' + questoes[qi].exp;
+  } else {
+    erros++;
+    fb.className = 'feedback err';
+    fb.innerHTML = '❌ <strong>Errado.</strong> ' + questoes[qi].exp;
+  }
+  atualizarPlacar();
+}
+
+function finalizar() {
+  questoes.forEach((_, qi) => { if (!confirmadas[qi] && respostas[qi] !== null) confirmar(qi); });
+  const pct    = Math.round((acertos / questoes.length) * 100);
+  const nota20 = ((acertos / questoes.length) * 20).toFixed(1);
+  const passou = acertos >= 3;
+  const div    = document.getElementById('resultado');
+  div.style.display = 'block';
+  div.innerHTML = `
+    <h2>${passou ? '🎉' : '📚'} ${acertos}/20 acertos (${pct}%)</h2>
+    <p style="margin:8px 0;font-size:16px;font-weight:bold;color:#1F3864">
+      Nota equivalente: <span style="color:${passou?'#1D9E75':'#E24B4A'}">${nota20}/20 pontos</span>
+    </p>
+    <p style="margin-top:6px;font-size:13px;color:#444">
+      ${passou
+        ? '✅ Você passaria na rec! Revise os erros pra garantir.'
+        : '⚠️ Revise os tópicos que errou. Você precisa de só ~3 acertos na rec!'}
+    </p>
+    <p style="margin-top:10px;font-size:11px;color:#888">
+      Sua nota atual: 57.72 | Meta: 60 | Precisa de ≈ 2.28pts na rec de 20
+    </p>
+  `;
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Renderizar ──
+const quiz = document.getElementById('quiz');
+let blocoAtual = '';
+let blocoDiv   = null;
+
+questoes.forEach((q, qi) => {
+  if (q.bloco && q.bloco !== blocoAtual) {
+    blocoAtual = q.bloco;
+    blocoDiv   = document.createElement('div');
+    blocoDiv.className = 'bloco';
+    const t = document.createElement('div');
+    t.className = 'bloco-titulo';
+    t.textContent = q.bloco;
+    blocoDiv.appendChild(t);
+    quiz.appendChild(blocoDiv);
+  }
+
+  const div  = document.createElement('div');
+  div.className = `questao q${qi}`;
+  const letras = ['A','B','C','D','E'];
+  let html = `<div class="q-titulo">${q.q}</div><div class="opcoes">`;
+  q.ops.forEach((op, oi) => {
+    html += `<label class="opcao" onclick="selecionar(${qi},${oi})">
+      <input type="radio" name="q${qi}" value="${oi}"> ${letras[oi]}) ${op}
+    </label>`;
+  });
+  html += `</div>
+    <button class="btn-check" onclick="confirmar(${qi})">Confirmar resposta</button>
+    <div class="feedback"></div>`;
+  div.innerHTML = html;
+  blocoDiv.appendChild(div);
+});
+</script>
+</body>
+</html>
